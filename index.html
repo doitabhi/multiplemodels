@@ -3,108 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Babylon.js Model Viewer</title>
+    <title>GLB Model Viewer</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { width: 100%; height: 100%; display: block; }
-        #modelSelector {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 100;
-            padding: 5px;
-        }
+        body { margin: 0; font-family: Arial, sans-serif; text-align: center; }
+        canvas { width: 100%; height: 500px; display: block; }
+        select { margin: 10px; padding: 5px; font-size: 16px; }
     </style>
 </head>
 <body>
-    <select id="modelSelector"></select>
+
+    <h2>Select a 3D Model</h2>
+    <select id="modelSelector">
+        <option value="Home.glb">Home</option>
+        <option value="Walls.glb">Walls</option>
+    </select>
+
     <canvas id="renderCanvas"></canvas>
+
     <script>
-        window.addEventListener('DOMContentLoaded', function() {
-            // Get the canvas and selector elements
-            var canvas = document.getElementById("renderCanvas");
-            var modelSelector = document.getElementById("modelSelector");
-            var currentModel = null;
+        // Babylon.js Scene Setup
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        const scene = new BABYLON.Scene(engine);
+        const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, Math.PI / 2.5, 5, BABYLON.Vector3.Zero(), scene);
+        camera.attachControl(canvas, true);
+        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0), scene);
 
-            // Create Babylon.js engine
-            var engine = new BABYLON.Engine(canvas, true);
-            var scene = null;
+        let modelMesh = null;
 
-            // Function to list all GLB files in the current directory
-            async function listGLBFiles() {
-                try {
-                    const response = await fetch('.');
-                    const text = await response.text();
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(text, 'text/html');
-                    const links = Array.from(doc.getElementsByTagName('a'));
-                    const glbFiles = links
-                        .map(link => link.href)
-                        .filter(href => href.toLowerCase().endsWith('.glb'))
-                        .map(href => href.split('/').pop());
-
-                    glbFiles.forEach(file => {
-                        const option = document.createElement('option');
-                        option.value = file;
-                        option.textContent = file;
-                        modelSelector.appendChild(option);
-                    });
-
-                    if (glbFiles.length > 0) {
-                        loadModel(glbFiles[0]);
-                    }
-                } catch (error) {
-                    console.error('Error listing GLB files:', error);
-                }
+        function loadModel(modelPath) {
+            // Clear previous model if exists
+            if (modelMesh) {
+                modelMesh.dispose();
             }
 
-            // Create scene function
-            var createScene = function() {
-                scene = new BABYLON.Scene(engine);
-                var camera = new BABYLON.ArcRotateCamera("Camera", Math.PI / 2, Math.PI / 3, 5, BABYLON.Vector3.Zero(), scene);
-                camera.attachControl(canvas, true);
-
-                // Add lighting
-                var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0), scene);
-                light.intensity = 0.7;
-
-                return scene;
-            };
-
-            // Function to load selected model
-            function loadModel(filename) {
-                if (currentModel) {
-                    currentModel.dispose();
-                }
-                
-                BABYLON.SceneLoader.ImportMesh("", "", filename, scene, function(meshes) {
-                    currentModel = meshes[0];
-                    console.log("Model Loaded:", filename);
-                });
-            }
-
-            // Initialize scene
-            scene = createScene();
-
-            // Handle model selection changes
-            modelSelector.addEventListener('change', function(e) {
-                loadModel(e.target.value);
+            // Load selected .glb model
+            BABYLON.SceneLoader.ImportMesh("", "", modelPath, scene, function (meshes) {
+                modelMesh = meshes[0];
+                modelMesh.position = new BABYLON.Vector3(0, 0, 0);
             });
+        }
 
-            // Start render loop
-            engine.runRenderLoop(function() {
-                scene.render();
-            });
+        // Initial Load
+        loadModel(document.getElementById("modelSelector").value);
 
-            window.addEventListener("resize", function() {
-                engine.resize();
-            });
-
-            // List available GLB files
-            listGLBFiles();
+        // Change Model on Selection
+        document.getElementById("modelSelector").addEventListener("change", function () {
+            loadModel(this.value);
         });
+
+        engine.runRenderLoop(() => scene.render());
+        window.addEventListener("resize", () => engine.resize());
     </script>
+
 </body>
 </html>
